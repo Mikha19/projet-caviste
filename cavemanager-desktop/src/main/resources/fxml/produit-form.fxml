@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox xmlns="http://javafx.com/javafx/21"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.cavemanager.controller.ProduitFormController"
+      spacing="0" styleClass="form-root">
+
+    <!-- Titre -->
+    <Label fx:id="labelTitre" text="Produit" styleClass="form-title">
+        <VBox.margin><Insets top="20" right="20" bottom="12" left="20"/></VBox.margin>
+    </Label>
+
+    <!-- Grille du formulaire -->
+    <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" styleClass="form-scroll">
+        <GridPane hgap="12" vgap="10" styleClass="form-grid">
+            <padding><Insets top="8" right="20" bottom="8" left="20"/></padding>
+
+            <!-- Ligne 0 : Nom (obligatoire) -->
+            <Label text="Nom *" styleClass="form-label" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+            <TextField fx:id="fieldNom" promptText="Ex: Château Margaux" GridPane.columnIndex="1" GridPane.rowIndex="0" GridPane.hgrow="ALWAYS"/>
+
+            <!-- Ligne 1 : Appellation -->
+            <Label text="Appellation" styleClass="form-label" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+            <TextField fx:id="fieldAppellation" promptText="Ex: Bordeaux AOC" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+
+            <!-- Ligne 2 : Millésime + Région -->
+            <Label text="Millésime" styleClass="form-label" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+            <TextField fx:id="fieldMillesime" promptText="Ex: 2019" prefWidth="100" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+
+            <Label text="Région" styleClass="form-label" GridPane.columnIndex="2" GridPane.rowIndex="2"/>
+            <TextField fx:id="fieldRegion" promptText="Ex: Bordeaux" GridPane.columnIndex="3" GridPane.rowIndex="2"/>
+
+            <!-- Ligne 3 : Producteur -->
+            <Label text="Producteur" styleClass="form-label" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+            <TextField fx:id="fieldProducteur" promptText="Ex: Château Margaux SARL" GridPane.columnIndex="1" GridPane.rowIndex="3" GridPane.columnSpan="3"/>
+
+            <!-- Ligne 4 : Prix -->
+            <Label text="Prix achat (€)" styleClass="form-label" GridPane.columnIndex="0" GridPane.rowIndex="4"/>
+            <TextField fx:id="fieldPrixAchat" promptText="Ex: 18.50" prefWidth="120" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
+
+            <Label text="Prix vente (€)" styleClass="form-label" GridPane.columnIndex="2" GridPane.rowIndex="4"/>
+            <TextField fx:id="fieldPrixVente" promptText="Ex: 25.00" prefWidth="120" GridPane.columnIndex="3" GridPane.rowIndex="4"/>
+
+            <!-- Ligne 5 : Stock + Seuil -->
+            <Label text="Qté initiale" styleClass="form-label" GridPane.columnIndex="0" GridPane.rowIndex="5"/>
+            <TextField fx:id="fieldQuantite" promptText="0" prefWidth="100" GridPane.columnIndex="1" GridPane.rowIndex="5"/>
+
+            <Label text="Seuil alerte" styleClass="form-label" GridPane.columnIndex="2" GridPane.rowIndex="5"/>
+            <TextField fx:id="fieldSeuil" promptText="5" prefWidth="100" GridPane.columnIndex="3" GridPane.rowIndex="5"/>
+
+            <!-- Ligne 6 : Description -->
+            <Label text="Description" styleClass="form-label" GridPane.columnIndex="0" GridPane.rowIndex="6"/>
+            <TextArea fx:id="areaDescription" promptText="Notes, commentaires..." prefHeight="80"
+                      GridPane.columnIndex="1" GridPane.rowIndex="6" GridPane.columnSpan="3"/>
+
+            <columnConstraints>
+                <ColumnConstraints minWidth="110" prefWidth="110"/>
+                <ColumnConstraints hgrow="ALWAYS"/>
+                <ColumnConstraints minWidth="110" prefWidth="110"/>
+                <ColumnConstraints hgrow="SOMETIMES" prefWidth="120"/>
+            </columnConstraints>
+        </GridPane>
+    </ScrollPane>
+
+    <!-- Message d'erreur -->
+    <Label fx:id="labelErreur" styleClass="label-erreur" wrapText="true" visible="false">
+        <VBox.margin><Insets top="6" right="20" bottom="0" left="20"/></VBox.margin>
+    </Label>
+
+    <!-- Boutons -->
+    <HBox spacing="10" alignment="CENTER_RIGHT">
+        <padding><Insets top="14" right="20" bottom="20" left="20"/></padding>
+        <Button fx:id="btnAnnuler" text="Annuler" onAction="#onAnnuler" styleClass="btn-secondary"/>
+        <Button fx:id="btnSauvegarder" text="💾 Sauvegarder" onAction="#onSauvegarder" styleClass="btn-primary" defaultButton="true"/>
+    </HBox>
+
+</VBox>

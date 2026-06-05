@@ -18,13 +18,23 @@ interface Commande {
   dateRetraitEffective?: string;
 }
 
-const statusLabels: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+interface StatusLabel {
+  label: string;
+  color: string;
+  icon: React.ReactNode;
+}
+
+const statusLabels = {
   PANIER: { label: 'Panier', color: 'bg-gray-100 text-gray-800', icon: <Package size={18} /> },
   VALIDEE: { label: 'Validée', color: 'bg-blue-100 text-blue-800', icon: <CheckCircle size={18} /> },
   EN_PREPARATION: { label: 'En préparation', color: 'bg-yellow-100 text-yellow-800', icon: <Clock size={18} /> },
   PRETE: { label: 'Prête', color: 'bg-green-100 text-green-800', icon: <CheckCircle size={18} /> },
   RETIREE: { label: 'Retirée', color: 'bg-green-100 text-green-800', icon: <CheckCircle size={18} /> },
   ANNULEE: { label: 'Annulée', color: 'bg-red-100 text-red-800', icon: <CheckCircle size={18} /> },
+} as const;
+
+const getStatusLabel = (statut: string): StatusLabel => {
+  return (statusLabels[statut as keyof typeof statusLabels] ?? statusLabels.VALIDEE) as StatusLabel;
 };
 
 export default function OrdersPage() {
@@ -77,7 +87,7 @@ export default function OrdersPage() {
           {orders
             .filter((order) => order.statut !== 'PANIER') // Hide cart-like orders
             .map((order) => {
-              const status = statusLabels[order.statut] || statusLabels.VALIDEE;
+              const status = getStatusLabel(order.statut);
               return (
                 <Link key={order.id} href={`/orders/${order.id}`}>
                   <div className="card hover:shadow-lg transition-shadow cursor-pointer">

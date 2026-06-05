@@ -8,10 +8,6 @@ plugins {
 group = "com.cavemanager"
 version = "1.0.0"
 
-repositories {
-    mavenCentral()
-}
-
 dependencies {
     // Ktor Server
     implementation("io.ktor:ktor-server-core:3.0.3")
@@ -49,10 +45,4 @@ kotlin {
 
 application {
     mainClass.set("com.cavemanager.api.ApplicationKt")
-}
-
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-    kotlinOptions {
-        jvmTarget = "17"
-    }
 }

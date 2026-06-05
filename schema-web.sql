@@ -1,212 +1,156 @@
 -- ============================================================
--- CaveManager Web — Extensions de schéma pour web/mobile
--- MySQL 8.0+
+-- CaveManager Web — Extensions de schéma pour fonctionnalités web
+-- À exécuter APRÈS schema.sql
 -- ============================================================
--- Ajoute les tables pour clients, commandes et authentification
 
 USE cavemanager;
 
 -- ============================================================
--- TABLE : clients
+-- TABLE : clients (Customer accounts)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS clients (
     id              INT AUTO_INCREMENT PRIMARY KEY,
-    email           VARCHAR(255) NOT NULL UNIQUE,
-    password_hash   VARCHAR(255) NOT NULL,
-    nom             VARCHAR(100) NOT NULL,
-    prenom          VARCHAR(100) NOT NULL,
+    email           VARCHAR(255)    NOT NULL UNIQUE,
+    mot_de_passe    VARCHAR(255)    NOT NULL,   -- bcrypt hashed
+    nom             VARCHAR(100)    NOT NULL,
+    prenom          VARCHAR(100)    NOT NULL,
     telephone       VARCHAR(20),
     adresse         VARCHAR(255),
     code_postal     VARCHAR(10),
     ville           VARCHAR(100),
-    pays            VARCHAR(50),
-    role            ENUM('CLIENT', 'CAVISTE', 'ADMIN') DEFAULT 'CLIENT',
-    statut          ENUM('ACTIF', 'INACTIF', 'SUSPENDU') DEFAULT 'ACTIF',
-    date_inscription TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    derniere_connexion TIMESTAMP NULL,
-    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) COMMENT 'Comptes clients et utilisateurs du système';
+    date_inscription TIMESTAMP      DEFAULT CURRENT_TIMESTAMP,
+    derniere_connexion TIMESTAMP,
+    actif           BOOLEAN         DEFAULT TRUE,
+    created_at      TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP       DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    CONSTRAINT chk_email_format CHECK (email LIKE '%@%.%')
+) COMMENT 'Comptes clients pour l''interface web';
 
 CREATE INDEX idx_clients_email ON clients(email);
-CREATE INDEX idx_clients_role ON clients(role);
-CREATE INDEX idx_clients_statut ON clients(statut);
+CREATE INDEX idx_clients_actif ON clients(actif);
 
 -- ============================================================
--- TABLE : sessions
--- ============================================================
-CREATE TABLE IF NOT EXISTS sessions (
-    id              VARCHAR(255) PRIMARY KEY,
-    client_id       INT NOT NULL,
-    token           VARCHAR(500) NOT NULL UNIQUE,
-    date_creation   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    date_expiration TIMESTAMP NOT NULL,
-    adresse_ip      VARCHAR(50),
-    user_agent      VARCHAR(500),
-    actif           BOOLEAN DEFAULT TRUE,
-    
-    CONSTRAINT fk_session_client
-        FOREIGN KEY (client_id) REFERENCES clients(id)
-        ON DELETE CASCADE
-) COMMENT 'Gestion des sessions d\'authentification';
-
-CREATE INDEX idx_sessions_token ON sessions(token);
-CREATE INDEX idx_sessions_client ON sessions(client_id);
-
--- ============================================================
--- TABLE : commandes
+-- TABLE : commandes (Orders)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS commandes (
     id              INT AUTO_INCREMENT PRIMARY KEY,
-    client_id       INT NOT NULL,
-    numero_cmd      VARCHAR(50) NOT NULL UNIQUE,
-    statut          ENUM('PANIER', 'CONFIRMEE', 'PRETE', 'RETIREE', 'ANNULEE') DEFAULT 'PANIER',
-    montant_total   DECIMAL(10, 2) NOT NULL DEFAULT 0,
-    date_creation   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    date_confirmation TIMESTAMP NULL,
-    date_retrait    TIMESTAMP NULL,
-    mode_paiement   ENUM('ESPECES', 'CARTE', 'CHEQUE', 'EN_ATTENTE') DEFAULT 'EN_ATTENTE',
-    paiement_effectue BOOLEAN DEFAULT FALSE,
+    client_id       INT             NOT NULL,
+    numero_commande VARCHAR(50)     NOT NULL UNIQUE,  -- EX: CMD-2024-0001
+    statut          ENUM('PANIER', 'VALIDEE', 'EN_PREPARATION', 'PRETE', 'RETIREE', 'ANNULEE') 
+                    DEFAULT 'PANIER',
+    montant_total   DECIMAL(10, 2)  NOT NULL DEFAULT 0,
+    montant_paye    DECIMAL(10, 2)  DEFAULT 0,
+    mode_paiement   ENUM('EN_BOUTIQUE', 'ONLINE', 'AUTRE') DEFAULT 'EN_BOUTIQUE',
+    statut_paiement ENUM('NON_PAYE', 'PARTIELLEMENT_PAYE', 'PAYE') DEFAULT 'NON_PAYE',
+    date_creation   TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
+    date_retrait_prevue DATETIME,
+    date_retrait_effective DATETIME,
     notes           TEXT,
-    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at      TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP       DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
     CONSTRAINT fk_commande_client
         FOREIGN KEY (client_id) REFERENCES clients(id)
-        ON DELETE RESTRICT
-) COMMENT 'Commandes client en ligne';
+        ON DELETE CASCADE
+) COMMENT 'Commandes en ligne des clients (panier -> commande validée)';
 
 CREATE INDEX idx_commandes_client ON commandes(client_id);
 CREATE INDEX idx_commandes_statut ON commandes(statut);
-CREATE INDEX idx_commandes_numero ON commandes(numero_cmd);
 CREATE INDEX idx_commandes_date ON commandes(date_creation);
+CREATE INDEX idx_commandes_numero ON commandes(numero_commande);
 
 -- ============================================================
--- TABLE : lignes_commande
+-- TABLE : lignes_commande (Order items)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS lignes_commande (
     id              INT AUTO_INCREMENT PRIMARY KEY,
-    commande_id     INT NOT NULL,
-    produit_id      INT NOT NULL,
-    quantite        INT NOT NULL DEFAULT 1,
-    prix_unitaire   DECIMAL(10, 2) NOT NULL,
-    prix_total      DECIMAL(10, 2) NOT NULL,
-    date_ajout      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    commande_id     INT             NOT NULL,
+    produit_id      INT             NOT NULL,
+    quantite        INT             NOT NULL,
+    prix_unitaire   DECIMAL(10, 2)  NOT NULL,
+    sous_total      DECIMAL(10, 2)  NOT NULL,
+    created_at      TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
     
     CONSTRAINT fk_ligne_commande
         FOREIGN KEY (commande_id) REFERENCES commandes(id)
         ON DELETE CASCADE,
-        
+    
     CONSTRAINT fk_ligne_produit
-        FOREIGN KEY (produit_id) REFERENCES produits(id)
-        ON DELETE RESTRICT,
-        
-    CONSTRAINT chk_quantite_ligne
+        FOREIGN KEY (produit_id) REFERENCES produits(id),
+    
+    CONSTRAINT chk_quantite_ligne_positive
         CHECK (quantite > 0)
-) COMMENT 'Lignes de commande (articles du panier/commande)';
+) COMMENT 'Lignes de détail des commandes (produits + quantités)';
 
 CREATE INDEX idx_lignes_commande ON lignes_commande(commande_id);
 CREATE INDEX idx_lignes_produit ON lignes_commande(produit_id);
 
 -- ============================================================
--- TABLE : notifications
+-- TABLE : historique_commandes (Audit trail)
 -- ============================================================
-CREATE TABLE IF NOT EXISTS notifications (
+CREATE TABLE IF NOT EXISTS historique_commandes (
     id              INT AUTO_INCREMENT PRIMARY KEY,
-    client_id       INT,
-    type            ENUM('COMMANDE', 'ALERTE_STOCK', 'PAIEMENT', 'SYSTEME') NOT NULL,
-    titre           VARCHAR(255) NOT NULL,
-    message         TEXT NOT NULL,
-    lu              BOOLEAN DEFAULT FALSE,
-    date_creation   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    date_lecture    TIMESTAMP NULL,
+    commande_id     INT             NOT NULL,
+    ancien_statut   VARCHAR(50),
+    nouveau_statut  VARCHAR(50)     NOT NULL,
+    date_changement TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
+    commentaire     TEXT,
     
-    CONSTRAINT fk_notif_client
-        FOREIGN KEY (client_id) REFERENCES clients(id)
-        ON DELETE SET NULL
-) COMMENT 'Notifications système et commerciales';
+    CONSTRAINT fk_historique_commande
+        FOREIGN KEY (commande_id) REFERENCES commandes(id)
+        ON DELETE CASCADE
+) COMMENT 'Historique des changements de statut de commande';
 
-CREATE INDEX idx_notif_client ON notifications(client_id);
-CREATE INDEX idx_notif_lu ON notifications(lu);
-CREATE INDEX idx_notif_date ON notifications(date_creation);
+CREATE INDEX idx_historique_commande ON historique_commandes(commande_id);
+CREATE INDEX idx_historique_date ON historique_commandes(date_changement);
 
 -- ============================================================
--- TABLE : historique_stock_alerte
+-- TABLE : alertes_stock (Low stock alerts for web display)
 -- ============================================================
-CREATE TABLE IF NOT EXISTS historique_stock_alerte (
+CREATE TABLE IF NOT EXISTS alertes_stock (
     id              INT AUTO_INCREMENT PRIMARY KEY,
-    produit_id      INT NOT NULL,
-    quantite_actuelle INT NOT NULL,
-    seuil_alerte    INT NOT NULL,
-    date_alerte     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    traitee         BOOLEAN DEFAULT FALSE,
+    produit_id      INT             NOT NULL,
+    quantite_actuelle INT,
+    seuil           INT             NOT NULL,
+    lue             BOOLEAN         DEFAULT FALSE,
+    date_alerte     TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
+    date_resolution DATETIME,
     
     CONSTRAINT fk_alerte_produit
         FOREIGN KEY (produit_id) REFERENCES produits(id)
         ON DELETE CASCADE
-) COMMENT 'Historique des alertes stock pour traçabilité';
+) COMMENT 'Alertes de stock pour le dashboard caviste';
 
-CREATE INDEX idx_alerte_produit ON historique_stock_alerte(produit_id);
-CREATE INDEX idx_alerte_traitee ON historique_stock_alerte(traitee);
+CREATE INDEX idx_alertes_produit ON alertes_stock(produit_id);
+CREATE INDEX idx_alertes_lue ON alertes_stock(lue);
 
 -- ============================================================
--- Triggers pour audit et automatisation
+-- TABLE : avis_produits (Product reviews)
 -- ============================================================
-
--- Trigger : Créer une alerte stock quand seuil dépassé
-DELIMITER //
-CREATE TRIGGER IF NOT EXISTS trg_alerte_stock_entree
-AFTER INSERT ON mouvements_stock
-FOR EACH ROW
-BEGIN
-    DECLARE qte_actuelle INT;
-    DECLARE seuil INT;
+CREATE TABLE IF NOT EXISTS avis_produits (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    produit_id      INT             NOT NULL,
+    client_id       INT             NOT NULL,
+    note            INT             NOT NULL,  -- 1-5 stars
+    titre           VARCHAR(200),
+    texte           TEXT,
+    date_avis       TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
+    moderé           BOOLEAN        DEFAULT FALSE,
     
-    SELECT quantite_stock, seuil_alerte INTO qte_actuelle, seuil
-    FROM produits WHERE id = NEW.produit_id;
+    CONSTRAINT fk_avis_produit
+        FOREIGN KEY (produit_id) REFERENCES produits(id)
+        ON DELETE CASCADE,
     
-    IF qte_actuelle <= seuil THEN
-        INSERT INTO historique_stock_alerte (produit_id, quantite_actuelle, seuil_alerte)
-        VALUES (NEW.produit_id, qte_actuelle, seuil);
-    END IF;
-END//
-DELIMITER ;
+    CONSTRAINT fk_avis_client
+        FOREIGN KEY (client_id) REFERENCES clients(id)
+        ON DELETE CASCADE,
+    
+    CONSTRAINT chk_note_range
+        CHECK (note >= 1 AND note <= 5),
+    
+    UNIQUE KEY uk_avis_produit_client (produit_id, client_id)
+) COMMENT 'Avis et notes des clients sur les produits';
 
--- Trigger : Mettre à jour le montant total de la commande
-DELIMITER //
-CREATE TRIGGER IF NOT EXISTS trg_update_montant_commande
-AFTER INSERT ON lignes_commande
-FOR EACH ROW
-BEGIN
-    UPDATE commandes
-    SET montant_total = (
-        SELECT SUM(prix_total) FROM lignes_commande WHERE commande_id = NEW.commande_id
-    )
-    WHERE id = NEW.commande_id;
-END//
-DELIMITER ;
-
-DELIMITER //
-CREATE TRIGGER IF NOT EXISTS trg_update_montant_commande_delete
-AFTER DELETE ON lignes_commande
-FOR EACH ROW
-BEGIN
-    UPDATE commandes
-    SET montant_total = COALESCE((
-        SELECT SUM(prix_total) FROM lignes_commande WHERE commande_id = OLD.commande_id
-    ), 0)
-    WHERE id = OLD.commande_id;
-END//
-DELIMITER ;
-
--- Trigger : Générer numéro de commande
-DELIMITER //
-CREATE TRIGGER IF NOT EXISTS trg_numero_commande
-BEFORE INSERT ON commandes
-FOR EACH ROW
-BEGIN
-    IF NEW.numero_cmd IS NULL OR NEW.numero_cmd = '' THEN
-        SET NEW.numero_cmd = CONCAT('CMD-', DATE_FORMAT(NOW(), '%Y%m%d'), '-', LPAD(LAST_INSERT_ID(), 5, '0'));
-    END IF;
-END//
-DELIMITER ;
+CREATE INDEX idx_avis_produit ON avis_produits(produit_id);
+CREATE INDEX idx_avis_client ON avis_produits(client_id);

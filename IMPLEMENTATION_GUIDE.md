@@ -2,13 +2,15 @@
 
 ## ✅ Database Configuration Updated
 
-Your API and Desktop applications are now configured to connect to:
-- **Host**: 10.15.3.150
-- **Port**: 3306
-- **Database**: cavemanager
-- **User**: cavemanager_user
+Your VM Deployment:
+- **Frontend + Backend (Web Server)**: 10.15.3.101
+  - Frontend: http://10.15.3.101:3000
+  - Backend API: http://10.15.3.101:8080
+- **Database Server**: 10.15.3.150
+- **Database User**: cavemanager_user
+- **Database Password**: passCaviste@user19
 
-Both applications use the same credentials and database.
+Both frontend and backend run on the same web server VM and connect to the database at 10.15.3.150.
 
 ## 📝 Changes Made
 
@@ -55,14 +57,16 @@ Both applications use the same credentials and database.
 
 ## 🚀 Getting Started
 
+All services run on the **Web Server VM (10.15.3.101)**. Connect to this VM and follow these steps:
+
 ### Step 1: Verify Database Access
 
-Test connection to 10.15.3.150:
+Test connection to 10.15.3.150 from the web server VM:
 ```bash
-# From command line
+# From web server (10.15.3.101)
 mysql -h 10.15.3.150 -u cavemanager_user -p
 
-# Password: cavemanagerTest123!
+# Password: passCaviste@user19
 # Then check:
 USE cavemanager;
 SELECT COUNT(*) FROM produits;
@@ -71,6 +75,8 @@ SELECT COUNT(*) FROM clients;
 ```
 
 ### Step 2: Start the API Server
+
+On the **Web Server VM (10.15.3.101)**:
 
 ```bash
 cd cavemanager-api
@@ -82,24 +88,26 @@ gradle build
 gradle run
 ```
 
-The API will start on `http://localhost:8080`
+The API will start on `http://10.15.3.101:8080`
+
+(Keep this terminal running)
 
 ### Step 3: Test API Endpoints
 
 #### Health Check
 ```bash
-curl http://localhost:8080/health
+curl http://10.15.3.101:8080/health
 ```
 
 #### Get All Products
 ```bash
-curl http://localhost:8080/api/v1/produits
+curl http://10.15.3.101:8080/api/v1/produits
 ```
 
 #### Register & Login
 ```bash
 # Register
-curl -X POST http://localhost:8080/api/v1/auth/register \
+curl -X POST http://10.15.3.101:8080/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "email": "test@example.com",
@@ -109,7 +117,7 @@ curl -X POST http://localhost:8080/api/v1/auth/register \
   }'
 
 # Login (use returned token for other requests)
-curl -X POST http://localhost:8080/api/v1/auth/login \
+curl -X POST http://10.15.3.101:8080/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "test@example.com",
@@ -119,23 +127,23 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
 
 #### Get Protected Resource (requires token)
 ```bash
-curl -X GET http://localhost:8080/api/v1/profile \
+curl -X GET http://10.15.3.101:8080/api/v1/profile \
   -H "Authorization: Bearer {your_token_here}"
 ```
 
 ### Step 4: Configure Frontend
 
-Create `.env.local` in `cavemanager-web/`:
-```
-NEXT_PUBLIC_API_URL=http://10.15.3.150:8080
-```
+On the **Web Server VM (10.15.3.101)**, create `.env.local` in `cavemanager-web/`:
 
-Or keep localhost if running API locally:
 ```
 NEXT_PUBLIC_API_URL=http://localhost:8080
 ```
 
+Since both frontend and backend run on the same VM, they can communicate via localhost.
+
 ### Step 5: Start Frontend Development Server
+
+On the **Web Server VM (10.15.3.101)** in a new terminal:
 
 ```bash
 cd cavemanager-web
@@ -143,11 +151,11 @@ npm install
 npm run dev
 ```
 
-Frontend runs on `http://localhost:3000`
+Frontend runs on `http://10.15.3.101:3000`
 
 ## 📊 Testing the Full Flow
 
-1. **Open** http://localhost:3000
+1. **Open** http://10.15.3.101:3000 (or `http://localhost:3000` from the web server)
 2. **Register** a new customer account
 3. **Browse** products (fetched from 10.15.3.150 database)
 4. **Add items** to cart
@@ -169,18 +177,36 @@ Set as system environment variables or in docker-compose:
 JWT_SECRET=your-secret-key-change-in-production
 ```
 
-### Frontend (.env.local)
+### Frontend (.env.local) - Web Server VM 10.15.3.101
 ```
-NEXT_PUBLIC_API_URL=http://10.15.3.150:8080
+NEXT_PUBLIC_API_URL=http://localhost:8080
 ```
 
-### Database (database.properties)
+### Database (database.properties) - Web Server VM 10.15.3.101
 ```
 db.host=10.15.3.150
 db.port=3306
 db.name=cavemanager
 db.user=cavemanager_user
-db.password=cavemanagerTest123!
+db.password=passCaviste@user19
+```
+
+### VM Architecture
+```
+┌──────────────────────────────────────────────────────────┐
+│ Web Server VM (10.15.3.101)                              │
+│ ├─ Next.js Frontend (http://10.15.3.101:3000)            │
+│ │  └─ .env.local → NEXT_PUBLIC_API_URL=http://localhost │
+│ ├─ Ktor API (http://10.15.3.101:8080)                    │
+│ │  └─ database.properties → db.host=10.15.3.150          │
+│ └─ Both services on same machine                         │
+└──────────────────────────────────────────────────────────┘
+                            ↓
+┌──────────────────────────────────────────────────────────┐
+│ Database VM (10.15.3.150)                                │
+│ ├─ MySQL 8.0+                                            │
+│ └─ cavemanager database (user: cavemanager_user)         │
+└──────────────────────────────────────────────────────────┘
 ```
 
 ## 📱 Production Deployment Checklist

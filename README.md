@@ -142,7 +142,7 @@ File → Open SQL Script → sélectionner schema.sql → ⚡ Exécuter (Ctrl+Sh
 
 Ce script crée :
 - La base de données `cavemanager`
-- L'utilisateur `cavemanager_user` avec le mot de passe `cavemanager_pass`
+- L'utilisateur `cavemanager_user` avec le mot de passe `cavemanagerTest123!`
 - Les tables `categories`, `produits`, `mouvements_stock`
 
 ### 5.2 Injecter les données de démonstration
@@ -171,7 +171,7 @@ db.host=localhost
 db.port=3306
 db.name=cavemanager
 db.user=cavemanager_user
-db.password=cavemanager_pass
+db.password=cavemanagerTest123!
 ```
 
 > ⚠️ Ne committez jamais ce fichier avec de vrais mots de passe sur un dépôt public.
@@ -428,7 +428,7 @@ sc query type= service | findstr -i mysql
 ```sql
 -- En root dans MySQL Workbench
 DROP USER IF EXISTS 'cavemanager_user'@'localhost';
-CREATE USER 'cavemanager_user'@'localhost' IDENTIFIED BY 'cavemanager_pass';
+CREATE USER 'cavemanager_user'@'localhost' IDENTIFIED BY 'cavemanagerTest123!';
 GRANT ALL PRIVILEGES ON cavemanager.* TO 'cavemanager_user'@'localhost';
 FLUSH PRIVILEGES;
 ```

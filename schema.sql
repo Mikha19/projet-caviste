@@ -14,8 +14,8 @@ USE cavemanager;
 
 -- Création d'un utilisateur dédié (optionnel mais recommandé)
 -- Adaptez le mot de passe selon votre environnement
-CREATE USER IF NOT EXISTS 'cavemanager_user'@'localhost' IDENTIFIED BY 'cavemanager_pass';
-GRANT ALL PRIVILEGES ON cavemanager.* TO 'cavemanager_user'@'localhost';
+CREATE USER IF NOT EXISTS 'cavemanager_user'@'localhost' IDENTIFIED BY 'cavemanagerTest123!';
+GRANT SELECT, INSERT, UPDATE, DELETE ON cavemanager.* TO 'cavemanager_user'@'localhost';
 FLUSH PRIVILEGES;
 
 -- ============================================================

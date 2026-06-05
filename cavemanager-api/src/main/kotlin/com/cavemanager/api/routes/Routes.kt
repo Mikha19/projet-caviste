@@ -112,19 +112,35 @@ fun Route.installProduitRoutes() {
                 val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 1
                 val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 20
                 val search = call.request.queryParameters["search"] ?: ""
+                val categorieId = call.request.queryParameters["categorieId"]?.toIntOrNull()
                 
-                // TODO: Implement pagination
-                val allProduits = if (search.isNotBlank()) {
-                    // TODO: Call ProduitDao.rechercher(search)
-                    emptyList<ProduitDTO>()
+                val allProduits = when {
+                    search.isNotBlank() -> ProduitDao.rechercher(search)
+                    categorieId != null -> ProduitDao.findByCategorie(categorieId)
+                    else -> ProduitDao.findAll()
+                }
+                
+                // Simple pagination
+                val startIdx = (page - 1) * limit
+                val endIdx = minOf(startIdx + limit, allProduits.size)
+                val paginated = if (startIdx < allProduits.size) {
+                    allProduits.subList(startIdx, endIdx)
                 } else {
-                    // TODO: Call ProduitDao.findAll()
-                    emptyList<ProduitDTO>()
+                    emptyList()
                 }
                 
                 call.respond(
                     HttpStatusCode.OK,
-                    ApiResponse(true, data = allProduits)
+                    ApiResponse(
+                        true,
+                        data = PaginatedResponse(
+                            items = paginated,
+                            total = allProduits.size,
+                            page = page,
+                            pageSize = limit,
+                            totalPages = (allProduits.size + limit - 1) / limit
+                        )
+                    )
                 )
             } catch (e: Exception) {
                 call.respond(
@@ -140,11 +156,15 @@ fun Route.installProduitRoutes() {
                 val id = call.parameters["id"]?.toIntOrNull()
                     ?: return@get call.respond(HttpStatusCode.BadRequest)
                 
-                // TODO: Implement get product by ID
+                val produit = ProduitDao.findById(id)
+                    ?: return@get call.respond(
+                        HttpStatusCode.NotFound,
+                        ApiResponse<Unit>(false, "Product not found")
+                    )
                 
                 call.respond(
-                    HttpStatusCode.NotFound,
-                    ApiResponse<Unit>(false, "Product not found")
+                    HttpStatusCode.OK,
+                    ApiResponse(true, data = produit)
                 )
             } catch (e: Exception) {
                 call.respond(
@@ -157,8 +177,7 @@ fun Route.installProduitRoutes() {
         // Get low stock alerts
         get("/alerts/stock") {
             try {
-                // TODO: Implement get low stock alerts
-                val alerts = emptyList<AlerteStockDTO>()
+                val alerts = AlerteStockDao.findUnread()
                 
                 call.respond(
                     HttpStatusCode.OK,
@@ -176,16 +195,15 @@ fun Route.installProduitRoutes() {
 
 fun Route.installCommandeRoutes() {
     route("/commandes") {
-        val principal = call.authentication.principal<JWTPrincipal>()
-            ?: return@route
-        val clientId = principal.payload.getClaim("clientId").asInt()
-            ?: return@route
-        
         // Get client's orders
         get {
             try {
-                // TODO: Implement get commandes by client
-                val commandes = emptyList<CommandeDTO>()
+                val principal = call.authentication.principal<JWTPrincipal>()
+                    ?: return@get call.respond(HttpStatusCode.Unauthorized)
+                val clientId = principal.payload.getClaim("clientId").asInt()
+                    ?: return@get call.respond(HttpStatusCode.Unauthorized)
+                
+                val commandes = CommandeDao.findByClientId(clientId)
                 
                 call.respond(
                     HttpStatusCode.OK,
@@ -202,11 +220,28 @@ fun Route.installCommandeRoutes() {
         // Get current cart
         get("/panier") {
             try {
-                // TODO: Implement get panier actif
-                call.respond(
-                    HttpStatusCode.NotFound,
-                    ApiResponse<Unit>(false, "No active cart")
-                )
+                val principal = call.authentication.principal<JWTPrincipal>()
+                    ?: return@get call.respond(HttpStatusCode.Unauthorized)
+                val clientId = principal.payload.getClaim("clientId").asInt()
+                    ?: return@get call.respond(HttpStatusCode.Unauthorized)
+                
+                val panier = CommandeDao.getPanierActif(clientId)
+                    ?: run {
+                        // Create new cart if none exists
+                        CommandeDao.createPanier(clientId)
+                    }
+                
+                if (panier != null) {
+                    call.respond(
+                        HttpStatusCode.OK,
+                        ApiResponse(true, data = panier)
+                    )
+                } else {
+                    call.respond(
+                        HttpStatusCode.NotFound,
+                        ApiResponse<Unit>(false, "No active cart")
+                    )
+                }
             } catch (e: Exception) {
                 call.respond(
                     HttpStatusCode.InternalServerError,
@@ -218,13 +253,38 @@ fun Route.installCommandeRoutes() {
         // Add to cart
         post("/panier/add") {
             try {
+                val principal = call.authentication.principal<JWTPrincipal>()
+                    ?: return@post call.respond(HttpStatusCode.Unauthorized)
+                val clientId = principal.payload.getClaim("clientId").asInt()
+                    ?: return@post call.respond(HttpStatusCode.Unauthorized)
+                
                 val request = call.receive<AddToCartRequest>()
                 
-                // TODO: Implement add to cart
-                call.respond(
-                    HttpStatusCode.Created,
-                    ApiResponse<Unit>(true, "Item added to cart")
-                )
+                // Get product to verify it exists and get price
+                val produit = ProduitDao.findById(request.produitId)
+                    ?: return@post call.respond(
+                        HttpStatusCode.NotFound,
+                        ApiResponse<Unit>(false, "Product not found")
+                    )
+                
+                // Get or create cart
+                var panier = CommandeDao.getPanierActif(clientId)
+                if (panier == null) {
+                    panier = CommandeDao.createPanier(clientId)
+                }
+                
+                if (panier != null) {
+                    CommandeDao.addToCart(panier.id, request.produitId, request.quantite, produit.prixVente ?: 0.0)
+                    call.respond(
+                        HttpStatusCode.Created,
+                        ApiResponse<Unit>(true, "Item added to cart")
+                    )
+                } else {
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        ApiResponse<Unit>(false, "Failed to add to cart")
+                    )
+                }
             } catch (e: Exception) {
                 call.respond(
                     HttpStatusCode.BadRequest,
@@ -236,15 +296,26 @@ fun Route.installCommandeRoutes() {
         // Update cart line
         put("/panier/ligne/{ligneId}") {
             try {
+                val principal = call.authentication.principal<JWTPrincipal>()
+                    ?: return@put call.respond(HttpStatusCode.Unauthorized)
+                
                 val ligneId = call.parameters["ligneId"]?.toIntOrNull()
                     ?: return@put call.respond(HttpStatusCode.BadRequest)
                 val request = call.receive<UpdateCartLineRequest>()
                 
-                // TODO: Implement update cart line
-                call.respond(
-                    HttpStatusCode.OK,
-                    ApiResponse<Unit>(true, "Cart updated")
-                )
+                val updated = CommandeDao.updateCartLine(ligneId, request.quantite)
+                
+                if (updated) {
+                    call.respond(
+                        HttpStatusCode.OK,
+                        ApiResponse<Unit>(true, "Cart updated")
+                    )
+                } else {
+                    call.respond(
+                        HttpStatusCode.NotFound,
+                        ApiResponse<Unit>(false, "Line not found")
+                    )
+                }
             } catch (e: Exception) {
                 call.respond(
                     HttpStatusCode.BadRequest,
@@ -256,14 +327,25 @@ fun Route.installCommandeRoutes() {
         // Remove from cart
         delete("/panier/ligne/{ligneId}") {
             try {
+                val principal = call.authentication.principal<JWTPrincipal>()
+                    ?: return@delete call.respond(HttpStatusCode.Unauthorized)
+                
                 val ligneId = call.parameters["ligneId"]?.toIntOrNull()
                     ?: return@delete call.respond(HttpStatusCode.BadRequest)
                 
-                // TODO: Implement remove from cart
-                call.respond(
-                    HttpStatusCode.OK,
-                    ApiResponse<Unit>(true, "Item removed from cart")
-                )
+                val removed = CommandeDao.removeFromCart(ligneId)
+                
+                if (removed) {
+                    call.respond(
+                        HttpStatusCode.OK,
+                        ApiResponse<Unit>(true, "Item removed from cart")
+                    )
+                } else {
+                    call.respond(
+                        HttpStatusCode.NotFound,
+                        ApiResponse<Unit>(false, "Line not found")
+                    )
+                }
             } catch (e: Exception) {
                 call.respond(
                     HttpStatusCode.BadRequest,
@@ -275,13 +357,44 @@ fun Route.installCommandeRoutes() {
         // Validate order (checkout)
         post("/panier/valider") {
             try {
+                val principal = call.authentication.principal<JWTPrincipal>()
+                    ?: return@post call.respond(HttpStatusCode.Unauthorized)
+                val clientId = principal.payload.getClaim("clientId").asInt()
+                    ?: return@post call.respond(HttpStatusCode.Unauthorized)
+                
                 val request = call.receive<ValidateOrderRequest>()
                 
-                // TODO: Implement validate order
-                call.respond(
-                    HttpStatusCode.Created,
-                    ApiResponse<Unit>(true, "Order validated")
+                val panier = CommandeDao.getPanierActif(clientId)
+                    ?: return@post call.respond(
+                        HttpStatusCode.NotFound,
+                        ApiResponse<Unit>(false, "No active cart")
+                    )
+                
+                if (panier.lignes.isEmpty()) {
+                    return@post call.respond(
+                        HttpStatusCode.BadRequest,
+                        ApiResponse<Unit>(false, "Cart is empty")
+                    )
+                }
+                
+                val validated = CommandeDao.validateOrder(
+                    panier.id,
+                    request.dateRetraitPrevue,
+                    request.notes
                 )
+                
+                if (validated) {
+                    val updatedOrder = CommandeDao.findById(panier.id)
+                    call.respond(
+                        HttpStatusCode.Created,
+                        ApiResponse(true, "Order validated", updatedOrder)
+                    )
+                } else {
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        ApiResponse<Unit>(false, "Failed to validate order")
+                    )
+                }
             } catch (e: Exception) {
                 call.respond(
                     HttpStatusCode.BadRequest,
@@ -293,13 +406,21 @@ fun Route.installCommandeRoutes() {
         // Get order by ID
         get("/{id}") {
             try {
+                val principal = call.authentication.principal<JWTPrincipal>()
+                    ?: return@get call.respond(HttpStatusCode.Unauthorized)
+                
                 val id = call.parameters["id"]?.toIntOrNull()
                     ?: return@get call.respond(HttpStatusCode.BadRequest)
                 
-                // TODO: Implement get order by ID
+                val commande = CommandeDao.findById(id)
+                    ?: return@get call.respond(
+                        HttpStatusCode.NotFound,
+                        ApiResponse<Unit>(false, "Order not found")
+                    )
+                
                 call.respond(
-                    HttpStatusCode.NotFound,
-                    ApiResponse<Unit>(false, "Order not found")
+                    HttpStatusCode.OK,
+                    ApiResponse(true, data = commande)
                 )
             } catch (e: Exception) {
                 call.respond(

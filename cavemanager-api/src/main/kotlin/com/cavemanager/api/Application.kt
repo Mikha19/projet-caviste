@@ -113,7 +113,8 @@ fun Application.module() {
                 // Orders routes
                 installCommandeRoutes()
                 
-                // TODO: Add more protected routes
+                // Profile routes
+                installClientRoutes()
             }
         }
     }

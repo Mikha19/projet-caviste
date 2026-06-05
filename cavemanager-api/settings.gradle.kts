@@ -11,5 +11,3 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-
-rootProject.name = "cavemanager-api"

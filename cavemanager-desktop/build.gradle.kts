@@ -7,10 +7,6 @@ plugins {
 group = "com.cavemanager"
 version = "1.0.0"
 
-repositories {
-    mavenCentral()
-}
-
 dependencies {
     implementation("com.mysql:mysql-connector-j:8.3.0")
     implementation("org.slf4j:slf4j-simple:2.0.12")

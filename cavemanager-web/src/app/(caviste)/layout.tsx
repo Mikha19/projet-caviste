@@ -28,7 +28,7 @@ export default function CavisteLayout({
         } bg-primary text-white transition-all duration-300 shadow-lg`}
       >
         <div className="p-4 flex items-center justify-between border-b border-red-900">
-          <Link href="/caviste/dashboard" className="flex items-center gap-2">
+          <Link href="/dashboard" className="flex items-center gap-2">
             <div className="w-8 h-8 bg-secondary rounded flex items-center justify-center text-primary font-bold">
               🍷
             </div>
@@ -45,7 +45,7 @@ export default function CavisteLayout({
         {/* Navigation */}
         <nav className="p-4 space-y-2">
           <Link
-            href="/caviste/dashboard"
+            href="/dashboard"
             className="flex items-center gap-3 p-2 rounded hover:bg-red-900 transition"
           >
             <BarChart3 size={20} />
@@ -53,7 +53,7 @@ export default function CavisteLayout({
           </Link>
 
           <Link
-            href="/caviste/stock"
+            href="/stock"
             className="flex items-center gap-3 p-2 rounded hover:bg-red-900 transition"
           >
             <Package size={20} />
@@ -61,7 +61,7 @@ export default function CavisteLayout({
           </Link>
 
           <Link
-            href="/caviste/orders"
+            href="/orders"
             className="flex items-center gap-3 p-2 rounded hover:bg-red-900 transition"
           >
             <ShoppingCart size={20} />

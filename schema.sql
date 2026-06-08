@@ -40,7 +40,7 @@ CREATE TABLE categories (
 CREATE TABLE produits (
     id              INT AUTO_INCREMENT PRIMARY KEY,
     nom             VARCHAR(200)    NOT NULL,
-    appellation     VARCHAR(150),
+    id_appellation  INT,
     millesime       YEAR,
     producteur      VARCHAR(150),
     region          VARCHAR(100),
@@ -57,6 +57,10 @@ CREATE TABLE produits (
         FOREIGN KEY (categorie_id) REFERENCES categories(id)
         ON DELETE SET NULL,
 
+    CONSTRAINT fk_produit_appellation
+        FOREIGN KEY (id_appellation) REFERENCES appellations(id)
+        ON DELETE SET NULL,
+
     CONSTRAINT chk_quantite_positive
         CHECK (quantite_stock >= 0),
 
@@ -64,9 +68,14 @@ CREATE TABLE produits (
         CHECK (seuil_alerte >= 0)
 ) COMMENT 'Produits en stock (vins, champagnes, spiritueux...)';
 
+CREATE TABLE IF NOT EXISTS appellations (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    nom         VARCHAR(150) NOT NULL UNIQUE
+) COMMENT 'Appellations des vins (Bordeaux, Bourgogne, Champagne...)';
+
 -- Index pour les recherches par nom et appellation
 CREATE INDEX idx_produits_nom ON produits(nom);
-CREATE INDEX idx_produits_appellation ON produits(appellation);
+CREATE INDEX idx_produits_appellation ON appellations(nom);
 CREATE INDEX idx_produits_alerte ON produits(quantite_stock, seuil_alerte);
 
 -- ============================================================
@@ -91,3 +100,21 @@ CREATE TABLE mouvements_stock (
 -- Index pour les requêtes par produit et par date
 CREATE INDEX idx_mouvements_produit ON mouvements_stock(produit_id);
 CREATE INDEX idx_mouvements_date ON mouvements_stock(date_mouvement);
+
+SELECT * FROM mouvements_stock
+    JOIN produits ON mouvements_stock.produit_id = produits.id
+    WHERE mouvements_stock.type = 'SORTIE'
+    ORDER BY mouvements_stock.date_mouvement DESC
+    LIMIT 1;
+
+SELECT id, nom, appellation, millesime, producteur, region,
+                   categorie_id, prix_achat, prix_vente,
+                   quantite_stock, seuil_alerte, description, created_at,
+                   m.date_mouvement AS dernier_mouvement
+            FROM produits
+            LEFT JOIN (
+                SELECT produit_id, MAX(date_mouvement) AS date_mouvement
+                FROM mouvements_stock
+                GROUP BY produit_id
+            ) AS m ON produits.id = m.produit_id
+            ORDER BY nom ASC

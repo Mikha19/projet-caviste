@@ -36,8 +36,14 @@ object ProduitDao {
         val sql = """
             SELECT id, nom, appellation, millesime, producteur, region,
                    categorie_id, prix_achat, prix_vente,
-                   quantite_stock, seuil_alerte, description, created_at
+                   quantite_stock, seuil_alerte, description, created_at,
+                   m.date_mouvement AS dernier_mouvement
             FROM produits
+            LEFT JOIN (
+                SELECT produit_id, MAX(date_mouvement) AS date_mouvement
+                FROM mouvements_stock
+                GROUP BY produit_id
+            ) AS m ON produits.id = m.produit_id
             ORDER BY nom ASC
         """.trimIndent()
 
@@ -96,8 +102,14 @@ object ProduitDao {
         val sql = """
             SELECT id, nom, appellation, millesime, producteur, region,
                    categorie_id, prix_achat, prix_vente,
-                   quantite_stock, seuil_alerte, description, created_at
+                   quantite_stock, seuil_alerte, description, created_at,
+                   m.date_mouvement AS dernier_mouvement
             FROM produits
+            LEFT JOIN (
+                SELECT produit_id, MAX(date_mouvement) AS date_mouvement
+                FROM mouvements_stock
+                GROUP BY produit_id
+            ) AS m ON produits.id = m.produit_id
             WHERE id = ?
         """.trimIndent()
 
@@ -293,7 +305,8 @@ object ProduitDao {
             quantiteStock = rs.getInt("quantite_stock"),
             seuilAlerte  = rs.getInt("seuil_alerte"),
             description  = rs.getString("description"),
-            createdAt    = rs.getTimestamp("created_at")?.toLocalDateTime()
+            createdAt    = rs.getTimestamp("created_at")?.toLocalDateTime(),
+            dernierMouvement = rs.getTimestamp("date_mouvement")?.toLocalDateTime
         )
     }
 

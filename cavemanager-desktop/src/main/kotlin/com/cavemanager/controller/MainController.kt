@@ -46,6 +46,7 @@ class MainController : Initializable {
     @FXML private lateinit var colRegion: TableColumn<Produit, String>
     @FXML private lateinit var colStock: TableColumn<Produit, Int>
     @FXML private lateinit var colPrixVente: TableColumn<Produit, String>
+    @FXML private lateinit var colDernierMouvement TableColumn<Produit, String>
 
     @FXML private lateinit var textFieldRecherche: TextField
     @FXML private lateinit var labelNbProduits: Label
@@ -84,6 +85,7 @@ class MainController : Initializable {
         colRegion.cellValueFactory = PropertyValueFactory("region")
         colStock.cellValueFactory = PropertyValueFactory("quantiteStock")
         colPrixVente.cellValueFactory = PropertyValueFactory("prixVente")
+        colDernierMouvement.cellValueFactory = PropertyValueFactory("dernierMouvement")
 
         // Mise en évidence visuelle des produits en alerte (fond rouge clair)
         tableViewProduits.setRowFactory {

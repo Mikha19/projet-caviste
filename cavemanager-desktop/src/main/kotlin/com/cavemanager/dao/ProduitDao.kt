@@ -306,7 +306,7 @@ object ProduitDao {
             seuilAlerte  = rs.getInt("seuil_alerte"),
             description  = rs.getString("description"),
             createdAt    = rs.getTimestamp("created_at")?.toLocalDateTime(),
-            dernierMouvement = rs.getTimestamp("date_mouvement")?.toLocalDateTime
+            dernierMouvement = rs.getTimestamp("date_mouvement")?.toLocalDateTime()
         )
     }
 

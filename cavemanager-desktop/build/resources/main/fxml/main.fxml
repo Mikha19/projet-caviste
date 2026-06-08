@@ -54,6 +54,8 @@
                            styleClass="search-field"/>
                 <Button text="✕" onAction="#onEffacerRecherche" styleClass="btn-clear"/>
 
+                
+
                 <Region HBox.hgrow="ALWAYS"/>
 
                 <!-- Boutons CRUD -->
